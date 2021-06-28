@@ -1,2 +1,2 @@
 # sem6-bioinf
-Bioinformatics project: binary chip DNA sequencing with positive errors
+Bioinformatics project: alternating chip DNA sequencing with positive errors
