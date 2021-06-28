@@ -1,0 +1,26 @@
+<dna key="3029041" length="25" start="TAGAAAGAAGCATTCTGTG">
+    <probe pattern="NXNXNXNXNXNXNXNXNXN">
+        <cell>AXAXAXAXGXAXTXTXTXA</cell>
+        <cell>AXAXAXGXAXTXTXTXAXA</cell>
+        <cell>AXAXGXAXTXTXTXAXAXT</cell>
+        <cell>AXGXAXCXTXCXGXGXAXC</cell>
+        <cell>AXGXTXGXGXGXTXGXCXC</cell>
+        <cell>CXCXGXTXGXTXTXGXAXC</cell>
+        <cell>GXAXCXTXCXGXGXAXCXT</cell>
+        <cell>GXAXGXAXCXTXCXGXGXA</cell>
+        <cell>TXCXCXAXGXTXTXAXAXA</cell>
+        <cell>TXGXAXGXAXCXTXCXGXG</cell>
+    </probe>
+    <probe pattern="NXNXNXNXNXNXNXNXNN">
+        <cell>AXAXAXAXGXAXTXTXTG</cell>
+        <cell>AXAXAXGXAXTXTXTXAA</cell>
+        <cell>AXAXGXAXTXTXTXAXAC</cell>
+        <cell>AXGXAXCXTXCXGXGXAA</cell>
+        <cell>AXGXAXTXTXTXAXAXTT</cell>
+        <cell>AXGXGXAXTXGXTXGXAG</cell>
+        <cell>GXAXCXTXCXGXGXAXCT</cell>
+        <cell>GXAXGXAXCXTXCXGXGA</cell>
+        <cell>GXTXTXAXCXGXGXAXGT</cell>
+        <cell>TXGXAXGXAXCXTXCXGT</cell>
+    </probe>
+</dna>
