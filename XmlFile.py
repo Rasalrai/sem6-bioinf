@@ -3,10 +3,11 @@ import xml.etree.ElementTree as et
 
 class XmlFile:
     def __init__(self, file_path):
-        self.file_path = file_path
-        self.start = None
-        self.s1 = []    # spectrum 1
-        self.s2 = []    # spectrum 2
+        self.file_path: str = file_path
+        self.start: str = ""
+        self.s1: list = []    # spectrum 1
+        self.s2: list = []    # spectrum 2
+        self.seq_len: int = 0
         self.read_file()
 
     def read_file(self):
@@ -18,6 +19,7 @@ class XmlFile:
 
         root = tree.getroot()
         self.start = root.attrib["start"]
+        self.seq_len = root.attrib["length"]
 
         for oligon in root[0]:
             self.s1.append(oligon.text)
