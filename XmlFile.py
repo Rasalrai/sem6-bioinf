@@ -5,8 +5,8 @@ class XmlFile:
     def __init__(self, file_path):
         self.file_path: str = file_path
         self.start: str = ""
-        self.s1: list = []    # spectrum 1
-        self.s2: list = []    # spectrum 2
+        self.s1: list = []    # spectrum/probe 1
+        self.s2: list = []    # spectrum/probe 2
         self.probe1_pattern: str = ""       # for length, may be useful for something else
         self.probe2_pattern: str = ""
         self.seq_len: int = 0

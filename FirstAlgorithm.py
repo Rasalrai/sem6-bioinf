@@ -29,14 +29,11 @@ class FirstAlgorithm:
         self.graph: Graph = g
         self.file: XmlFile = self.graph.xml
 
-        # self.seq1_even = None
-        # self.seq1_odd = None
-        # self.seq2_even = None
-        # self.seq2_odd = None
-
-        # keeping track of our choices
+        # keeping track of the choices/options
+        # probe 1
         self.history1_even = []
         self.history1_odd = []
+        # probe 2
         self.history2_even = []
         self.history2_odd = []
 
@@ -110,9 +107,7 @@ class FirstAlgorithm:
         return 0
 
     def print_result(self):
-        # TODO it should work also if even and odd lengths are different
-
-        print("\n\n=== RESULT ===\n")
+        print("\n\n=== RESULTS ===\n")
         spaces = 0
         sequence = self.file.start[:-1]
 
@@ -124,5 +119,11 @@ class FirstAlgorithm:
 
             sequence += self.graph.nodes1[e["chosen"]][-1]
             sequence += self.graph.nodes1[o["chosen"]][-1]
+
+        if len(self.history1_even) > len(self.history1_odd):
+            e = self.history1_even[-1]
+            print(" " * spaces, self.graph.nodes1[e["chosen"]], sep="")
+            spaces += 1
+            sequence += self.graph.nodes1[e["chosen"]][-1]
 
         print(f"\n{sequence}\n  length: {spaces + len(self.graph.nodes1[0]) - 1}")
