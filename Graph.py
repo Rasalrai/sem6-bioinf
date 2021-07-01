@@ -11,20 +11,21 @@ if there are 2 or more of the same oligonucleotide, do we duplicate the node or 
 
 class Graph:
     def __init__(self, file: XmlFile):
-        self.xml = file
-        self.im1 = None
-        self.im2 = None
+        self.xml: XmlFile = file
+        self.im1: list = []
+        self.im2: list = []
+        self.nodes1 = file.s1
+        self.nodes2 = file.s2
+
         self.init_matrices()
         self.populate_incidence_matrices()
 
     def init_matrices(self):
         """ Initialize two matrices (for sequences 1 and 2) with appropriate number of zeroes """
-        self.im1 = []
         size = len(self.xml.s1)
         for i in range(size):
             self.im1.append([0] * size)
 
-        self.im2 = []
         size = len(self.xml.s2)
         for i in range(size):
             self.im2.append([0] * size)
