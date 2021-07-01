@@ -28,6 +28,7 @@ class FirstAlgorithm:
     def __init__(self, g: Graph):
         self.graph: Graph = g
         self.file: XmlFile = self.graph.xml
+        self.on_len = len(self.graph.nodes1[0])     # oligonucleotide length
 
         # keeping track of the choices/options
         # probe 1
@@ -40,12 +41,27 @@ class FirstAlgorithm:
     def execute(self):
         self.get_first_oligonucleotides()
 
-        even = self.next_step(0)
-        odd = self.next_step(1)
+        # even_length = ceil(total _len / 2)
+        # odd_length = floor(total _len / 2)
+        odd_len = (self.file.seq_len - self.on_len + 1) // 2
+        evn_len = self.file.seq_len - self.on_len + 1 - odd_len
 
-        while not (even or odd):
-            even = self.next_step(0)
-            odd = self.next_step(1)
+        even_chk = self.next_step(0)
+        while len(self.history1_even) < evn_len:
+            if even_chk:
+                self.go_back_dfs(0)
+            even_chk = self.next_step(0)
+
+        odd_chk = self.next_step(1)
+        while len(self.history1_odd) < odd_len:
+            if odd_chk:
+                self.go_back_dfs(1)
+            odd_chk = self.next_step(1)
+
+        # # while not (even or odd):
+        # while not (even and odd):
+        #     even = self.next_step(0)
+        #     odd = self.next_step(1)
 
         self.print_result()
 
@@ -54,7 +70,7 @@ class FirstAlgorithm:
 
         # there should be exactly and only one
         first_id = [a for a in range(len(self.graph.nodes1)) if self.graph.nodes1[a] == first][0]
-        self.history1_even.append({"prev": -1, "choice": False, "chosen": first_id})
+        self.history1_even.append({"prev": -1, "fork": False, "chosen": first_id})
 
         second_start = "".join([self.file.start[i] if i % 2 else "X" for i in range(1, len(self.file.start))])
         sec_options = [on_id for on_id in range(len(self.graph.nodes1)) if
@@ -63,9 +79,9 @@ class FirstAlgorithm:
         second_id = sec_options[0]
         if len(sec_options) > 1:
             # save it as the first choice
-            self.history1_odd.append({"prev": -1, "chosen": second_id, "choice": True, "options": sec_options[1:]})
+            self.history1_odd.append({"prev": -1, "chosen": second_id, "fork": True, "options": sec_options[1:]})
         else:
-            self.history1_odd.append({"prev": -1, "chosen": second_id, "choice": False})
+            self.history1_odd.append({"prev": -1, "chosen": second_id, "fork": False})
 
         print(f"sequence 1 starting with: {first_id} and {second_id}\n{self.file.start}")
         print(self.graph.nodes1[first_id], self.graph.nodes1[second_id], sep="\n·")
@@ -92,19 +108,43 @@ class FirstAlgorithm:
         options = self.get_next_nodes(entry["prev"], 1)
 
         if len(options) == 0:
-            print(f"-- cannot continue; no nodes to choose from ({'odd' if parity % 2 else 'even'}) --")
+            print(f"- Cannot continue; no nodes to choose from ({'odd' if parity % 2 else 'even'}) --")
             return -1
 
         entry["chosen"] = options[0]
 
         if len(options) > 1:
-            entry["choice"] = True
+            entry["fork"] = True
             entry["options"] = options[1:]
         else:
-            entry["choice"] = False
+            entry["fork"] = False
 
         history.append(entry)
         return 0
+
+    def go_back_dfs(self, parity):
+        """ return to the last encountered fork """
+        # todo go back in the probe 2 history too
+        history = self.history1_odd if parity % 2 else self.history1_even
+        # get the last spot with choices
+        for i in reversed(range(len(history))):
+            if history[i]["fork"]:
+                # return to this point
+                print(f"Return sequence {'odd' if parity % 2 else 'even'} from {len(history)} to {i}")
+                history = history[:i+1]
+                history[i]["chosen"] = history[i]["options"].pop(0)
+                if len(history[i]["options"]) == 0:
+                    history[i]["fork"] = False
+
+                # prevent incorrect copies of the array (unexpected behaviour)
+                if parity % 2:
+                    self.history1_odd = history
+                else:
+                    self.history1_even = history
+                return
+        print("Did not find a fork to return to!")
+
+        # return to this spot
 
     def print_result(self):
         print("\n\n=== RESULTS ===\n")
@@ -126,4 +166,15 @@ class FirstAlgorithm:
             spaces += 1
             sequence += self.graph.nodes1[e["chosen"]][-1]
 
-        print(f"\n{sequence}\n  length: {spaces + len(self.graph.nodes1[0]) - 1}")
+        print(f"\n{sequence}\n  length: {spaces + self.on_len - 1}")
+
+    def print_single(self, parity):
+        """ for debugging purposes - it's not called anywhere in the algorithm """
+        history = self.history1_odd if parity % 2 else self.history1_even
+
+        print("\n\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
+        spaces = 0
+        for item in history:
+            print("  " * spaces, self.graph.nodes1[item["chosen"]], " -F-" if item["fork"] else "", sep="")
+            spaces += 1
+        print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n\n\n")

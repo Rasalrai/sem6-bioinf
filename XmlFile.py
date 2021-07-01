@@ -22,7 +22,7 @@ class XmlFile:
 
         root = tree.getroot()
         self.start = root.attrib["start"]
-        self.seq_len = root.attrib["length"]
+        self.seq_len = int(root.attrib["length"])
 
         self.probe1_pattern = root[0].attrib["pattern"]
         self.probe2_pattern = root[1].attrib["pattern"]
