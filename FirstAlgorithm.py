@@ -47,21 +47,34 @@ class FirstAlgorithm:
         evn_len = self.file.seq_len - self.on_len + 1 - odd_len
 
         even_chk = self.next_step(0)
-        while len(self.history1_even) < evn_len:
-            if even_chk:
-                self.go_back_dfs(0)
-            even_chk = self.next_step(0)
-
         odd_chk = self.next_step(1)
-        while len(self.history1_odd) < odd_len:
-            if odd_chk:
-                self.go_back_dfs(1)
-            odd_chk = self.next_step(1)
 
-        # # while not (even or odd):
-        # while not (even and odd):
-        #     even = self.next_step(0)
-        #     odd = self.next_step(1)
+        # while len(self.history1_even) < evn_len:
+        #     if even_chk:
+        #         self.go_back_dfs(0)
+        #     even_chk = self.next_step(0)
+        #
+        # while len(self.history1_odd) < odd_len:
+        #     if odd_chk:
+        #         self.go_back_dfs(1)
+        #     odd_chk = self.next_step(1)
+
+        while len(self.history1_even) + len(self.history1_odd) < self.file.seq_len:
+            while len(self.history1_even) <= len(self.history1_odd):
+                if even_chk:
+                    self.go_back_dfs(0)
+                even_chk = self.next_step(0)
+
+            while len(self.history1_odd) < len(self.history1_even):
+                if odd_chk:
+                    self.go_back_dfs(1)
+                odd_chk = self.next_step(1)
+
+            while len(self.history2_even) + 1 < len(self.history1_even):
+                self.next_s2(0)
+
+            while len(self.history2_odd) + 1 < len(self.history1_odd):
+                self.next_s2(1)
 
         self.print_result()
 
@@ -70,7 +83,7 @@ class FirstAlgorithm:
 
         # there should be exactly and only one
         first_id = [a for a in range(len(self.graph.nodes1)) if self.graph.nodes1[a] == first][0]
-        self.history1_even.append({"prev": -1, "fork": False, "chosen": first_id})
+        self.history1_even.append({"prev": -1, "chosen": first_id, "fork": False})
 
         second_start = "".join([self.file.start[i] if i % 2 else "X" for i in range(1, len(self.file.start))])
         sec_options = [on_id for on_id in range(len(self.graph.nodes1)) if
@@ -85,6 +98,21 @@ class FirstAlgorithm:
 
         print(f"sequence 1 starting with: {first_id} and {second_id}\n{self.file.start}")
         print(self.graph.nodes1[first_id], self.graph.nodes1[second_id], sep="\n·")
+
+        # spectrum 2 - only one option to start
+        first2 = first[:-2] + self.file.start[-2]
+        second2 = second_start[:-1] + self.file.start[-1]
+
+        self.history2_even.append({
+            "prev": -1,
+            "chosen": [a for a in range(len(self.graph.nodes2)) if self.graph.nodes2[a] == first2][0],
+            "fork": False
+        })
+        self.history2_odd.append({
+            "prev": -1,
+            "chosen": [a for a in range(len(self.graph.nodes2)) if self.graph.nodes2[a] == second2][0],
+            "fork": False
+        })
 
         # print(self.history1_even, self.history1_odd, sep="\n")
         # print(f"\nnext options (s1):\n{self.get_next_nodes(first_id, 1)}\t{self.get_next_nodes(second_id, 1)}\n\n")
@@ -101,7 +129,6 @@ class FirstAlgorithm:
         append the next node to the list
         :param parity: 0 for even, 1 for odd
         """
-
         history = self.history1_odd if parity % 2 else self.history1_even
         entry = {"prev": history[-1]["chosen"]}
 
@@ -139,12 +166,69 @@ class FirstAlgorithm:
                 # prevent incorrect copies of the array (unexpected behaviour)
                 if parity % 2:
                     self.history1_odd = history
+                    # if len(self.history2_odd) > i+1:
+                    self.history2_odd = self.history2_odd[:i+2]
+                    # here
+                    # if len(self.history2_even) > i+1:
+                    self.history2_even = self.history2_even[:i+2]
                 else:
                     self.history1_even = history
+                    # if len(self.history2_even) > i+1:
+                    self.history2_even = self.history2_even[:i+2]
+                    # if len(self.history2_odd) > i:
+                    self.history2_odd = self.history2_odd[:i+1]
                 return
-        print("Did not find a fork to return to!")
+        raise Exception("Did not find a fork to return to!")
 
-        # return to this spot
+    def next_s2(self, parity):
+        # todo error detections (of problems in s1)
+        history = self.history2_odd if parity % 2 else self.history2_even
+        entry = {"prev": history[-1]["chosen"]}
+
+        options = self.get_next_nodes(entry["prev"], 2)
+
+        if len(options) == 0:
+            print(f"- Cannot continue; no nodes to choose from (s2; {'odd' if parity % 2 else 'even'}) --")
+            return -1
+
+        if len(options) > 1:
+            # two last chars - based on s1
+            curr = len(history)
+            if parity % 2:
+                last = self.graph.nodes1[self.history1_odd[curr-1]["chosen"]][-1] +\
+                       self.graph.nodes1[self.history1_even[curr]["chosen"]][-1]
+            else:
+                last = self.graph.nodes1[self.history1_even[curr-1]["chosen"]][-1] +\
+                       self.graph.nodes1[self.history1_odd[curr-1]["chosen"]][-1]
+
+            pattern = self.graph.nodes2[entry["prev"]][2:-1] + "X" + last
+
+            # if such item not found - go back
+            for item in options:
+                if self.graph.nodes2[item] == pattern:
+                    entry["chosen"] = item
+                    options.remove(item)
+                    break
+            if "chosen" not in entry.keys():
+                print("valid option not found")
+
+            entry["fork"] = True
+            entry["options"] = options
+        else:
+            entry["chosen"] = options[0]
+            entry["fork"] = False
+
+        history.append(entry)
+        return 0
+
+    def check_with_spec2(self, parity):
+        """
+        even1[i][-1] == odd2[i+1][-1]
+        odd1[i][-1] == even2[i+1][-1]
+        :param parity:
+        :return:
+        """
+        pass
 
     def print_result(self):
         print("\n\n=== RESULTS ===\n")
@@ -168,13 +252,18 @@ class FirstAlgorithm:
 
         print(f"\n{sequence}\n  length: {spaces + self.on_len - 1}")
 
-    def print_single(self, parity):
+    def print_single(self, parity, spectrum):
         """ for debugging purposes - it's not called anywhere in the algorithm """
-        history = self.history1_odd if parity % 2 else self.history1_even
+        if spectrum == 1:
+            history = self.history1_odd if parity % 2 else self.history1_even
+            nodes = self.graph.nodes1
+        else:
+            history = self.history2_odd if parity % 2 else self.history2_even
+            nodes = self.graph.nodes2
 
         print("\n\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
         spaces = 0
         for item in history:
-            print("  " * spaces, self.graph.nodes1[item["chosen"]], " -F-" if item["fork"] else "", sep="")
+            print("  " * spaces, nodes[item["chosen"]], " -F-" if item["fork"] else "", sep="")
             spaces += 1
-        print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n\n\n")
+        print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n")
