@@ -28,7 +28,7 @@ class FirstAlgorithm:
     def __init__(self, g: Graph):
         self.graph: Graph = g
         self.file: XmlFile = self.graph.xml
-        self.on_len = len(self.graph.nodes1[0])     # oligonucleotide length
+        self.on1_len = len(self.graph.nodes1[0])     # oligonucleotide length
 
         # keeping track of the choices/options
         # probe 1
@@ -43,39 +43,44 @@ class FirstAlgorithm:
 
         # even_length = ceil(total _len / 2)
         # odd_length = floor(total _len / 2)
-        odd_len = (self.file.seq_len - self.on_len + 1) // 2
-        evn_len = self.file.seq_len - self.on_len + 1 - odd_len
+        # odd_len = (self.file.seq_len - self.on1_len + 1) // 2
+        # evn_len = self.file.seq_len - self.on1_len + 1 - odd_len
+
+        seq2_evn_chk = 0
+        seq2_odd_chk = 0
 
         even_chk = self.next_step(0)
         odd_chk = self.next_step(1)
 
-        # while len(self.history1_even) < evn_len:
-        #     if even_chk:
-        #         self.go_back_dfs(0)
-        #     even_chk = self.next_step(0)
-        #
-        # while len(self.history1_odd) < odd_len:
-        #     if odd_chk:
-        #         self.go_back_dfs(1)
-        #     odd_chk = self.next_step(1)
-
+        # if s2 check returns !=0, then don't check until the next fork return
         while len(self.history1_even) + len(self.history1_odd) < self.file.seq_len:
             while len(self.history1_even) <= len(self.history1_odd):
                 if even_chk:
                     self.go_back_dfs(0)
+                    seq2_evn_chk = 0
+                    seq2_odd_chk = 0
                 even_chk = self.next_step(0)
 
             while len(self.history1_odd) < len(self.history1_even):
                 if odd_chk:
                     self.go_back_dfs(1)
+                    seq2_evn_chk = 0
+                    seq2_odd_chk = 0
                 odd_chk = self.next_step(1)
 
-            while len(self.history2_even) + 1 < len(self.history1_even):
-                self.next_s2(0)
+            # check if it's there was no error since last fork and if there's enough data from seq1
+            # to check with seq2
+            while not seq2_evn_chk and len(self.history2_even) + 1 < len(self.history1_even):
+                seq2_evn_chk = self.next_s2(0)
 
-            while len(self.history2_odd) + 1 < len(self.history1_odd):
-                self.next_s2(1)
+            while not seq2_odd_chk and len(self.history2_odd) + 1 < len(self.history1_odd):
+                seq2_odd_chk = self.next_s2(1)
 
+        # TODO if seq2 is not matching
+        if len(self.history2_even) + len(self.history2_odd) < self.file.seq_len - len(self.graph.nodes2[0]) + 1:
+            # try choosing another path in even
+            # try choosing another path in odd
+            pass
         self.print_result()
 
     def get_first_oligonucleotides(self):
@@ -204,16 +209,31 @@ class FirstAlgorithm:
             pattern = self.graph.nodes2[entry["prev"]][2:-1] + "X" + last
 
             # if such item not found - go back
+            option_ons = []
             for item in options:
                 if self.graph.nodes2[item] == pattern:
                     entry["chosen"] = item
                     options.remove(item)
                     break
+                else:
+                    option_ons.append(self.graph.nodes2[item])
             if "chosen" not in entry.keys():
                 print("valid option not found")
-
-            entry["fork"] = True
-            entry["options"] = options
+                # go back in graph based on the possible options
+                first = [x[-2] for x in option_ons]
+                second = [x[-1] for x in option_ons]
+                if last[0] not in first:
+                    self.go_back_dfs(parity)
+                if last[1] not in second:
+                    self.go_back_dfs(parity+1)
+                return -1
+            else:
+                entry["fork"] = True
+                entry["options"] = options
+        elif len(options) == 0:
+            # TODO what to do here?
+            pass
+            return 1
         else:
             entry["chosen"] = options[0]
             entry["fork"] = False
@@ -250,7 +270,7 @@ class FirstAlgorithm:
             spaces += 1
             sequence += self.graph.nodes1[e["chosen"]][-1]
 
-        print(f"\n{sequence}\n  length: {spaces + self.on_len - 1}")
+        print(f"\n{sequence}\n  length: {spaces + self.on1_len - 1}")
 
     def print_single(self, parity, spectrum):
         """ for debugging purposes - it's not called anywhere in the algorithm """
@@ -262,6 +282,7 @@ class FirstAlgorithm:
             nodes = self.graph.nodes2
 
         print("\n\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
+        print(f"\t{parity%2} {spectrum}")
         spaces = 0
         for item in history:
             print("  " * spaces, nodes[item["chosen"]], " -F-" if item["fork"] else "", sep="")
