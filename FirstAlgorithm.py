@@ -25,7 +25,8 @@ def match_sequences(first, second, shift=0):
 
 
 """
-another approach
+IDEAS
+- another approach
 
 if seq2 can't be matched (and can't tell which path needs changing):
     try_another():
@@ -35,6 +36,9 @@ if seq2 can't be matched (and can't tell which path needs changing):
                 if try_match_s2() success:
                     break
             go_back(odd)        # new permutation for the odd path
+
+- if not sure which sequence (e/o) is wrong, when forking, keep the previous path as an option
+    (how to make sure it doesn't do an infinite loop of 2 options because of that?
 
 
 """
@@ -59,11 +63,8 @@ class FirstAlgorithm:
 
         # even_length = ceil(total _len / 2)
         # odd_length = floor(total _len / 2)
-        # odd_len = (self.file.seq_len - self.on1_len + 1) // 2
-        # evn_len = self.file.seq_len - self.on1_len + 1 - odd_len
-
-        seq2_evn_chk = 0
-        seq2_odd_chk = 0
+        odd_len = (self.file.seq_len - self.on1_len + 1) // 2
+        evn_len = self.file.seq_len - self.on1_len + 1 - odd_len
 
         even_chk = self.next_step(0)
         odd_chk = self.next_step(1)
@@ -73,12 +74,14 @@ class FirstAlgorithm:
             seq2_evn_chk = 0
             seq2_odd_chk = 0
 
-            while len(self.history1_even) <= len(self.history1_odd):
+            while len(self.history1_even) <= len(self.history1_odd) and\
+                    len(self.history1_even) < evn_len:
                 if even_chk:
                     self.go_back_dfs(0)
                 even_chk = self.next_step(0)
 
-            while len(self.history1_odd) < len(self.history1_even):
+            while len(self.history1_odd) < len(self.history1_even) and\
+                    len(self.history1_odd) < odd_len:
                 if odd_chk:
                     self.go_back_dfs(1)
                 odd_chk = self.next_step(1)
@@ -205,8 +208,9 @@ class FirstAlgorithm:
                     self.history2_even = self.history2_even[:i + 1]
                     # if len(self.history2_odd) > i:
                     self.history2_odd = self.history2_odd[:i]
-                return
-        raise Exception("Did not find a fork to return to!")
+                return 0
+        print(f"Did not find a fork to return to! {'odd' if parity % 2 else 'even'}")
+        return 1
 
     def next_s2(self, parity):
         # todo error detections (of problems in s1)
@@ -243,19 +247,20 @@ class FirstAlgorithm:
                     option_ons.append(self.graph.nodes2[item])
             # if such item not found - go back
             if "chosen" not in entry.keys():
-                print("valid option not found")
-                # trying to limit possible options - which path (even/odd) needs to be changed
-                first = [x[-2] for x in option_ons]
-                second = [x[-1] for x in option_ons]
-                if last[0] not in first:
-                    self.go_back_dfs(parity)
-                if last[1] not in second:
-                    self.go_back_dfs(parity + 1)
-
-                if last[0] in first and last[1] in second:
-                    return 1
-                else:
-                    return -1
+                return 1
+                # print("valid option not found")
+                # # trying to limit possible options - which path (even/odd) needs to be changed
+                # first = [x[-2] for x in option_ons]
+                # second = [x[-1] for x in option_ons]
+                # if last[0] not in first:
+                #     self.go_back_dfs(parity)
+                # if last[1] not in second:
+                #     self.go_back_dfs(parity + 1)
+                #
+                # if last[0] in first and last[1] in second:
+                #     return 1
+                # else:
+                #     return -1
 
             else:
                 entry["fork"] = True
@@ -306,20 +311,30 @@ class FirstAlgorithm:
         while True:  # loop for even path options
             while True:     # loop for odd
                 # reach the required length of the odd path
-                odd_chk = self.next_step(1)
-
-                # not able to go forward and not able to fork
-                if not len([x for x in self.history1_odd if x["fork"]]) and odd_chk:
+                odd_chk = 0
+                ne = 0
+                no = 0
+                while len(self.history1_odd) < odd_len:
+                    # get new items in the lists
+                    if not self.next_step(1):
+                        if not self.next_s2(0):
+                            if not self.next_s2(1):
+                                continue
                     break
-                # need to search for a different path
-                if (odd_chk or self.next_s2(0) or self.next_s2(1)) and len([x for x in self.history1_odd if x["fork"]]):
-                    # if can't expand path, or match with s2, fork (if possible)
-                    self.go_back_dfs(1)
+                    # odd_chk = self.next_step(1)
+                    # ne = self.next_s2(0)
+                    # no = self.next_s2(1)
 
-                # found a path that's long enough
                 if len(self.history1_odd) >= odd_len:
                     success = True
                     break
+                else:
+                    # couldn't find a long enough sequence - search for different path
+                    if len([x for x in self.history1_odd if x["fork"]]):
+                        self.go_back_dfs(1)
+                    else:
+                        # not able to go forward and not able to fork
+                        break
 
             if success:
                 # TODO if this line is reached, is it certain that the path is correct vs. s2?
@@ -327,7 +342,7 @@ class FirstAlgorithm:
             else:
                 # get next even path of minimum len
                 self.go_back_dfs(0)
-                while len(self.history1_even) < even_len:
+                while len(self.history1_even) < even_len and len([x for x in self.history1_even if x["fork"]]):
                     if self.next_step(0):
                         self.go_back_dfs(0)
                 # restore the odd path to be able to fork and go through all options

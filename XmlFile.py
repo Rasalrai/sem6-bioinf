@@ -9,7 +9,7 @@ class XmlFile:
         self.s2: list = []    # spectrum/probe 2
         self.probe1_pattern: str = ""       # for length, may be useful for something else
         self.probe2_pattern: str = ""
-        self.seq_len: int = 0
+        self.seq_len: int = 0       # expected final length
 
         self.read_file()
 
