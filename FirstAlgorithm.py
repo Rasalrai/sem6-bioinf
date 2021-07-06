@@ -4,46 +4,7 @@ from Graph import Graph
 from XmlFile import XmlFile
 
 
-def match_sequences(first, second, shift=0):
-    """
-    e.g. with shift=2
-    AXAXGXCXT   first
-    ..AXGXCXTG  second
-
-    only works for shift >= 0
-    """
-    f_id = 0
-    s_id = shift
-    while f_id < len(first) and s_id < len(second):
-        # if the letters are different and they are not X, the sequences don't match
-        if first[f_id] != second[s_id] and "X" not in (first[f_id], second[s_id]):
-            return False
-        f_id += 1
-        s_id += 1
-
-    return True  # differences not found
-
-
-"""
-IDEAS
-- another approach
-
-if seq2 can't be matched (and can't tell which path needs changing):
-    try_another():
-        while 1:
-            while new_fork_possible(even, no_loop):
-                go_back()
-                if try_match_s2() success:
-                    break
-            go_back(odd)        # new permutation for the odd path
-
-- if not sure which sequence (e/o) is wrong, when forking, keep the previous path as an option
-    (how to make sure it doesn't do an infinite loop of 2 options because of that?
-
-
-"""
-
-
+# noinspection DuplicatedCode
 class FirstAlgorithm:
     def __init__(self, g: Graph):
         self.graph: Graph = g
@@ -58,56 +19,49 @@ class FirstAlgorithm:
         self.history2_even = []
         self.history2_odd = []
 
+    def build_paths(self):
+        # TODO first check which path is the shortest/missing most, and start "filling" with it
+        # TODO detection if it's known which path needs to be reverted
+        final_odd_len = (self.file.seq_len - self.on1_len + 1) // 2
+        final_evn_len = self.file.seq_len - self.on1_len + 1 - final_odd_len
+
+        while len(self.history1_even) <= len(self.history1_odd) and len(self.history1_even) < final_evn_len:
+            if self.next_step(0):
+                self.go_back_dfs(0)
+
+        while len(self.history1_odd) < len(self.history1_even) and len(self.history1_odd) < final_odd_len:
+            if self.next_step(1):
+                self.go_back_dfs(1)
+
+        # check if it's there was no error since last fork and if there's enough data from seq1
+        # to check with seq2
+        while len(self.history2_even) + 1 < len(self.history1_even):
+            if self.next_s2(0):
+                return 2
+
+        while len(self.history2_odd) + 1 < len(self.history1_odd):
+            if self.next_s2(1):
+                return 1
+
+        return 0
+
     def execute(self):
         self.get_first_oligonucleotides()
 
-        # even_length = ceil(total _len / 2)
-        # odd_length = floor(total _len / 2)
-        odd_len = (self.file.seq_len - self.on1_len + 1) // 2
-        evn_len = self.file.seq_len - self.on1_len + 1 - odd_len
-
-        even_chk = self.next_step(0)
-        odd_chk = self.next_step(1)
+        total_len = self.file.seq_len - self.on1_len + 1
+        odd_len = total_len // 2
+        evn_len = total_len - odd_len
 
         # if s2 check returns !=0, then don't check until the next fork return
-        while len(self.history1_even) + len(self.history1_odd) < self.file.seq_len - self.on1_len + 1:
-            seq2_evn_chk = 0
-            seq2_odd_chk = 0
+        while len(self.history1_even) + len(self.history1_odd) < total_len or \
+                len(self.history2_even) + len(self.history2_odd) <= total_len:
+            bp = self.build_paths()
+            if bp:
+                # error
+                self.find_spectrum_match(bp)
 
-            while len(self.history1_even) <= len(self.history1_odd) and\
-                    len(self.history1_even) < evn_len:
-                if even_chk:
-                    self.go_back_dfs(0)
-                even_chk = self.next_step(0)
-
-            while len(self.history1_odd) < len(self.history1_even) and\
-                    len(self.history1_odd) < odd_len:
-                if odd_chk:
-                    self.go_back_dfs(1)
-                odd_chk = self.next_step(1)
-
-            # check if it's there was no error since last fork and if there's enough data from seq1
-            # to check with seq2
-            while not seq2_evn_chk and len(self.history2_even) + 1 < len(self.history1_even):
-                seq2_evn_chk = self.next_s2(0)
-
-            if seq2_evn_chk == -1:  # reverted single path
-                continue
-            if seq2_evn_chk == 1:
-                self.find_spectrum_match(0)
-                continue
-
-            while not seq2_odd_chk and len(self.history2_odd) + 1 < len(self.history1_odd):
-                seq2_odd_chk = self.next_s2(1)
-
-            if seq2_odd_chk == 1:
-                self.find_spectrum_match(1)
-
-        # TODO if seq2 is not matching
-        if len(self.history2_even) + len(self.history2_odd) < self.file.seq_len - len(self.graph.nodes2[0]) + 1:
-            # try choosing another path in even (with option to reset)
-            # try choosing another path in odd
-            pass
+        # if len(self.history2_even) + len(self.history2_odd) < self.file.seq_len - len(self.graph.nodes2[0]) + 1:
+        #     pass
         self.print_result()
 
     def get_first_oligonucleotides(self):
@@ -145,9 +99,6 @@ class FirstAlgorithm:
             "chosen": [a for a in range(len(self.graph.nodes2)) if self.graph.nodes2[a] == second2][0],
             "fork": False
         })
-
-        # print(self.history1_even, self.history1_odd, sep="\n")
-        # print(f"\nnext options (s1):\n{self.get_next_nodes(first_id, 1)}\t{self.get_next_nodes(second_id, 1)}\n\n")
 
     def get_next_nodes(self, node_no, spectr_no):
         """get list of direct successors of node `node_no` in graph im1 or im2"""
@@ -197,22 +148,24 @@ class FirstAlgorithm:
                 # prevent incorrect copies of the array (unexpected behaviour)
                 if parity % 2:
                     self.history1_odd = history
-                    # if len(self.history2_odd) > i+1:
                     self.history2_odd = self.history2_odd[:i + 1]
-                    # here
-                    # if len(self.history2_even) > i+1:
                     self.history2_even = self.history2_even[:i + 1]
                 else:
                     self.history1_even = history
-                    # if len(self.history2_even) > i+1:
                     self.history2_even = self.history2_even[:i + 1]
-                    # if len(self.history2_odd) > i:
                     self.history2_odd = self.history2_odd[:i]
                 return 0
         print(f"Did not find a fork to return to! {'odd' if parity % 2 else 'even'}")
         return 1
 
     def next_s2(self, parity):
+        """
+        :param parity:
+        :return:
+             0: OK, path extended
+            -1: the node has no out edges
+             1: no out edge matches the other sequences
+        """
         # todo error detections (of problems in s1)
         history = self.history2_odd if parity % 2 else self.history2_even
         entry = {"prev": history[-1]["chosen"]}
@@ -248,24 +201,9 @@ class FirstAlgorithm:
             # if such item not found - go back
             if "chosen" not in entry.keys():
                 return 1
-                # print("valid option not found")
-                # # trying to limit possible options - which path (even/odd) needs to be changed
-                # first = [x[-2] for x in option_ons]
-                # second = [x[-1] for x in option_ons]
-                # if last[0] not in first:
-                #     self.go_back_dfs(parity)
-                # if last[1] not in second:
-                #     self.go_back_dfs(parity + 1)
-                #
-                # if last[0] in first and last[1] in second:
-                #     return 1
-                # else:
-                #     return -1
 
             else:
                 entry["fork"] = True
-                # probably doesn't make sense to keep such detailed history here
-                # entry["options"] = options
 
         else:
             entry["chosen"] = options[0]
@@ -279,11 +217,16 @@ class FirstAlgorithm:
         TODO problem: wraca do zbyt wczesnego miejsca, gdzie potem nie ma forków do powrotu
         if paths of spectrum 1 are built so that building matching path of sp 2 is impossible,
         rebuild spectrum 1 paths, checking all options
+
+            for path in possible_even_paths:
+                for path in possible_odd_paths:
+                    if s2_is_correct:
+                        success = True
         """
         curr = len(self.history2_odd if parity_s2 % 2 else self.history2_even)
 
-        even_len = curr     # TODO sprawdź czy te wartości działają również dla parity=0
-        odd_len = curr - 1
+        even_len = curr + 1     # TODO sprawdź czy te wartości działają również dla parity=0
+        odd_len = curr
 
         self.history1_even = self.history1_even[:even_len]
         self.history1_odd = self.history1_odd[:odd_len]
@@ -292,9 +235,6 @@ class FirstAlgorithm:
         # until there's a possible connection with s2;
         # if not found, take one step in the even path and check all options of the odd tree again.
         saved_odd_state = copy.deepcopy(self.history1_odd)
-
-        # while there's an option to go back in the odd path
-        # while len([x for x in self.history1_odd if x["fork"]]):
 
         # expand it until it's odd_len long
         # check it against s2
@@ -308,36 +248,24 @@ class FirstAlgorithm:
 
         # for every even path option, check every odd path option
         # while len([x for x in self.history1_even if x["fork"]]):  # loop for even path options
-        while True:  # loop for even path options
-            while True:     # loop for odd
-                # reach the required length of the odd path
-                odd_chk = 0
-                ne = 0
-                no = 0
-                while len(self.history1_odd) < odd_len:
-                    # get new items in the lists
-                    if not self.next_step(1):
-                        if not self.next_s2(0):
-                            if not self.next_s2(1):
-                                continue
-                    break
-                    # odd_chk = self.next_step(1)
-                    # ne = self.next_s2(0)
-                    # no = self.next_s2(1)
 
-                if len(self.history1_odd) >= odd_len:
-                    success = True
-                    break
-                else:
-                    # couldn't find a long enough sequence - search for different path
-                    if len([x for x in self.history1_odd if x["fork"]]):
-                        self.go_back_dfs(1)
-                    else:
-                        # not able to go forward and not able to fork
+        """
+        case: saved_odd_state jest poprawny, trzeba znaleźć pasujący even path
+        """
+
+        while True:  # loop for even path options
+            while len(self.history1_even) + len(self.history1_odd) < self.file.seq_len - self.on1_len + 1:
+                # bp = self.build_paths()
+                if self.build_paths():
+                    self.go_back_dfs(1)
+                    if len([x for x in self.history1_odd if x["fork"]]) == 0:
                         break
 
+                if len(self.history1_odd) >= odd_len and len(self.history2_even) > curr and len(self.history2_odd) > curr:
+                    success = True
+                    break
+
             if success:
-                # TODO if this line is reached, is it certain that the path is correct vs. s2?
                 break
             else:
                 # get next even path of minimum len
@@ -347,29 +275,6 @@ class FirstAlgorithm:
                         self.go_back_dfs(0)
                 # restore the odd path to be able to fork and go through all options
                 self.history1_odd = copy.deepcopy(saved_odd_state)
-
-        # while len(self.history1_even) <= len(self.history1_odd):
-        #     if even_chk:
-        #         self.go_back_dfs(0)
-        #         seq2_evn_chk = 0
-        #         seq2_odd_chk = 0
-        #     even_chk = self.next_step(0)
-        #
-        # while len(self.history1_odd) < len(self.history1_even):
-        #     if odd_chk:
-        #         self.go_back_dfs(1)
-        #         seq2_evn_chk = 0
-        #         seq2_odd_chk = 0
-        #     odd_chk = self.next_step(1)
-
-    # def check_with_spec2(self, parity):
-    #     """
-    #     even1[i][-1] == odd2[i+1][-1]
-    #     odd1[i][-1] == even2[i+1][-1]
-    #     :param parity:
-    #     :return:
-    #     """
-    #     pass
 
     def print_result(self):
         print("\n\n=== RESULTS ===\n")
