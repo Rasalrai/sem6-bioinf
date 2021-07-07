@@ -1,11 +1,11 @@
 import copy
+import random
 
 from Graph import Graph
 from XmlFile import XmlFile
 
 
-# noinspection DuplicatedCode
-class FirstAlgorithm:
+class HeuristicAlgorithm:
     def __init__(self, g: Graph):
         self.graph: Graph = g
         self.file: XmlFile = self.graph.xml
@@ -20,49 +20,66 @@ class FirstAlgorithm:
         self.history2_odd = []
 
     def build_paths(self):
-        # TODO first check which path is the shortest/missing most, and start "filling" with it
-        # TODO detection if it's known which path needs to be reverted
-        final_odd_len = (self.file.seq_len - self.on1_len + 1) // 2
-        final_evn_len = self.file.seq_len - self.on1_len + 1 - final_odd_len
+        odd_len = (self.file.seq_len - self.on1_len + 1) // 2
+        evn_len = self.file.seq_len - self.on1_len + 1 - odd_len
 
-        while len(self.history1_even) <= len(self.history1_odd) and len(self.history1_even) < final_evn_len:
-            if self.next_step(0):
-                self.go_back_dfs(0)
+        seq2_evn_chk = 0
+        seq2_odd_chk = 0
 
-        while len(self.history1_odd) < len(self.history1_even) and len(self.history1_odd) < final_odd_len:
-            if self.next_step(1):
-                self.go_back_dfs(1)
+        evn_chk = 0
+        odd_chk = 0
+
+        # if s2 check returns !=0, then don't check until the next fork return
+        # while len(self.history1_even) + len(self.history1_odd) < self.file.seq_len - self.on1_len + 1:
+        while len(self.history1_even) <= len(self.history1_odd) and len(self.history1_even) < evn_len:
+            if evn_chk:
+                self.go_back_dfs(0, True)
+            evn_chk = self.next_step(0)
+
+        while len(self.history1_odd) < len(self.history1_even) and len(self.history1_odd) < odd_len:
+            if odd_chk:
+                self.go_back_dfs(1, True)
+            odd_chk = self.next_step(1)
 
         # check if it's there was no error since last fork and if there's enough data from seq1
         # to check with seq2
-        # TODO check continuation condition so that it can stop correctly at the end of sequence (it's too short now?)
-        while len(self.history2_even) <= len(self.history1_even):
-            if self.next_s2(0):
-                return 2
+        while not seq2_evn_chk and len(self.history2_even) + 1 < len(self.history1_even):
+            seq2_evn_chk = self.next_s2(0)
 
-        while len(self.history2_odd) < len(self.history1_odd):
-            if self.next_s2(1):
-                return 1
+        if seq2_evn_chk:
+            return 2
+
+        while not seq2_odd_chk and len(self.history2_odd) + 1 < len(self.history1_odd):
+            seq2_odd_chk = self.next_s2(1)
+
+        if seq2_odd_chk:
+            return 1
 
         return 0
 
     def execute(self):
         self.get_first_oligonucleotides()
 
+        # even_length = ceil(total _len / 2)
+        # odd_length = floor(total _len / 2)
         total_len = self.file.seq_len - self.on1_len + 1
         odd_len = total_len // 2
         evn_len = total_len - odd_len
 
         # if s2 check returns !=0, then don't check until the next fork return
-        while len(self.history1_even) + len(self.history1_odd) < total_len or \
-                len(self.history2_even) + len(self.history2_odd) <= total_len:
-            bp = self.build_paths()
-            if bp:
-                # error
-                self.find_spectrum_match(bp)
+        while len(self.history1_even) + len(self.history1_odd) < total_len:
+            if self.build_paths():
+                rand_seq = random.randint(0, 1)
+                # change a random path, with returns possible
+                # if return not possible, return the other sequence
+                if self.go_back_dfs(rand_seq, True):
+                    self.go_back_dfs(rand_seq+1, True)
 
-        # if len(self.history2_even) + len(self.history2_odd) < self.file.seq_len - len(self.graph.nodes2[0]) + 1:
-        #     pass
+        # TODO if seq2 is not matching
+        if len(self.history2_even) + len(self.history2_odd) < self.file.seq_len - len(self.graph.nodes2[0]) + 1:
+            # try choosing another path in even (with option to reset)
+            # try choosing another path in odd
+            pass
         self.print_result()
 
     def get_first_oligonucleotides(self):
@@ -79,7 +96,7 @@ class FirstAlgorithm:
         second_id = sec_options[0]
         if len(sec_options) > 1:
             # save it as the first choice
-            self.history1_odd.append({"prev": -1, "chosen": second_id, "fork": True, "options": sec_options[1:]})
+            self.history1_odd.append({"prev": -1, "chosen": second_id, "fork": True, "options": sec_options})
         else:
             self.history1_odd.append({"prev": -1, "chosen": second_id, "fork": False})
 
@@ -124,40 +141,54 @@ class FirstAlgorithm:
 
         entry["chosen"] = options[0]
 
+        # TODO random
         if len(options) > 1:
             entry["fork"] = True
-            entry["options"] = options[1:]
+            entry["options"] = options
         else:
             entry["fork"] = False
 
         history.append(entry)
         return 0
 
-    def go_back_dfs(self, parity):
+    def go_back_dfs(self, parity, allow_return):
         """ return to the last encountered fork """
+        # TODO randomize
         history = self.history1_odd if parity % 2 else self.history1_even
-        # get the last spot with choices
-        for i in reversed(range(len(history))):
-            if history[i]["fork"]:
-                # return to this point
-                # print(f"Return sequence {'odd' if parity % 2 else 'even'} from {len(history)} to {i}")
-                history = history[:i + 1]
-                history[i]["chosen"] = history[i]["options"].pop(0)
+
+        forks = [x for x in range(len(history)) if history[x]["fork"]]
+        if len(forks):
+            i = self.get_random_fork(forks) if allow_return else forks[-1]
+            # print(f"Return sequence {'odd' if parity % 2 else 'even'} from {len(history)} to {i}")
+            history = history[:i + 1]
+            # choose a random option
+            if allow_return:
+                # choose a random, different option
+                previous = history[i]["chosen"]
+                while previous == history[i]["chosen"]:
+                    history[i]["chosen"] = random.choice(history[i]["options"])
+            else:
+                # history[i]["chosen"] = history[i]["options"].pop(random.randint(0, len(history[i]["options"])-1))
+                history[i]["chosen"] = history[i]["options"].pop()
                 if len(history[i]["options"]) == 0:
                     history[i]["fork"] = False
 
-                # prevent incorrect copies of the array (unexpected behaviour)
-                if parity % 2:
-                    self.history1_odd = history
-                    self.history2_odd = self.history2_odd[:i + 1]
-                    self.history2_even = self.history2_even[:i + 1]
-                else:
-                    self.history1_even = history
-                    self.history2_even = self.history2_even[:i + 1]
-                    self.history2_odd = self.history2_odd[:i]
-                return 0
-        # print(f"Did not find a fork to return to! {'odd' if parity % 2 else 'even'}")
-        return 1
+            if parity % 2:
+                self.history1_odd = history
+                self.history2_odd = self.history2_odd[:i + 1]
+                self.history2_even = self.history2_even[:i + 1]
+            else:
+                self.history1_even = history
+                self.history2_even = self.history2_even[:i + 1]
+                self.history2_odd = self.history2_odd[:i]
+            return 0
+        else:
+            # print(f"Did not find a fork to return to! {'odd' if parity % 2 else 'even'}")
+            return 1
+
+    def get_random_fork(self, forks):
+        # TODO fancy probablility function
+        return random.choice(forks)
 
     def next_s2(self, parity):
         """
@@ -212,70 +243,6 @@ class FirstAlgorithm:
 
         history.append(entry)
         return 0
-
-    def find_spectrum_match(self, parity_s2):
-        """
-        TODO problem: wraca do zbyt wczesnego miejsca, gdzie potem nie ma forków do powrotu
-        if paths of spectrum 1 are built so that building matching path of sp 2 is impossible,
-        rebuild spectrum 1 paths, checking all options
-
-            for path in possible_even_paths:
-                for path in possible_odd_paths:
-                    if s2_is_correct:
-                        success = True
-        """
-        curr = len(self.history2_odd if parity_s2 % 2 else self.history2_even)
-
-        even_len = curr + 1     # TODO sprawdź czy te wartości działają również dla parity=0
-        odd_len = curr
-
-        self.history1_even = self.history1_even[:even_len]
-        self.history1_odd = self.history1_odd[:odd_len]
-
-        # go through all options of odd path, no longer than odd_len
-        # until there's a possible connection with s2;
-        # if not found, take one step in the even path and check all options of the odd tree again.
-        saved_odd_state = copy.deepcopy(self.history1_odd)
-
-        # expand it until it's odd_len long
-        # check it against s2
-        # if s2 is long enough, continue
-        # if gets stuck again, move to the next path
-
-        # get next odd path
-        self.go_back_dfs(1)
-        # build a new odd path, long enough to check (or stop when there's nowhere to go)
-        success = False
-
-        # for every even path option, check every odd path option
-        # while len([x for x in self.history1_even if x["fork"]]):  # loop for even path options
-
-        """
-        case: saved_odd_state jest poprawny, trzeba znaleźć pasujący even path
-        """
-
-        while True:  # loop for even path options
-            while len(self.history1_even) + len(self.history1_odd) < self.file.seq_len - self.on1_len + 1:
-                # bp = self.build_paths()
-                if self.build_paths():
-                    self.go_back_dfs(1)
-                    if len([x for x in self.history1_odd if x["fork"]]) == 0:
-                        break
-
-                if len(self.history1_odd) >= odd_len and len(self.history2_even) > curr and len(self.history2_odd) > curr:
-                    success = True
-                    break
-
-            if success:
-                break
-            else:
-                # get next even path of minimum len
-                self.go_back_dfs(0)
-                while len(self.history1_even) < even_len and len([x for x in self.history1_even if x["fork"]]):
-                    if self.next_step(0):
-                        self.go_back_dfs(0)
-                # restore the odd path to be able to fork and go through all options
-                self.history1_odd = copy.deepcopy(saved_odd_state)
 
     def print_result(self):
         print("\n\n=== RESULTS ===\n")

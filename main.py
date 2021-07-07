@@ -1,8 +1,17 @@
 import sys
 
 from FirstAlgorithm import FirstAlgorithm
+from HeuristicAlgorithm import HeuristicAlgorithm
 from Graph import Graph
 from XmlFile import XmlFile
+
+
+"""
+measuring time
+performance/no-log mode
+difficult cases
+"""
+
 
 
 if __name__ == '__main__':
@@ -12,5 +21,12 @@ if __name__ == '__main__':
 
     g = Graph(f)
 
-    solution = FirstAlgorithm(g)
-    solution.execute()
+    print("Heuristic")
+    solution1 = HeuristicAlgorithm(g)
+    solution1.execute()
+
+    print("DFS")
+    solution2 = FirstAlgorithm(g)
+    solution2.execute()
+
+    pass
