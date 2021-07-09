@@ -19,6 +19,8 @@ class FirstAlgorithm:
         self.history2_even = []
         self.history2_odd = []
 
+        self.final_sequence = ""
+
     def build_paths(self):
         # TODO first check which path is the shortest/missing most, and start "filling" with it
         # TODO detection if it's known which path needs to be reverted
@@ -60,10 +62,6 @@ class FirstAlgorithm:
             if bp:
                 # error
                 self.find_spectrum_match(bp)
-
-        # if len(self.history2_even) + len(self.history2_odd) < self.file.seq_len - len(self.graph.nodes2[0]) + 1:
-        #     pass
-        self.print_result()
 
     def get_first_oligonucleotides(self):
         first = "".join([self.file.start[i] if not i % 2 else "X" for i in range(len(self.file.start))])
@@ -297,6 +295,7 @@ class FirstAlgorithm:
             spaces += 1
             sequence += self.graph.nodes1[e["chosen"]][-1]
 
+        self.final_sequence = sequence
         print(f"\n{sequence}\n  length: {spaces + self.on1_len - 1}")
 
     def print_single(self, parity, spectrum):

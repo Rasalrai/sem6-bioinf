@@ -18,6 +18,7 @@ class HeuristicAlgorithm:
         # probe 2
         self.history2_even = []
         self.history2_odd = []
+        self.final_sequence = ""
 
     def build_paths(self):
         odd_len = (self.file.seq_len - self.on1_len + 1) // 2
@@ -43,13 +44,13 @@ class HeuristicAlgorithm:
 
         # check if it's there was no error since last fork and if there's enough data from seq1
         # to check with seq2
-        while not seq2_evn_chk and len(self.history2_even) + 1 < len(self.history1_even):
+        while not seq2_evn_chk and len(self.history2_even) <= len(self.history1_even):
             seq2_evn_chk = self.next_s2(0)
 
         if seq2_evn_chk:
             return 2
 
-        while not seq2_odd_chk and len(self.history2_odd) + 1 < len(self.history1_odd):
+        while not seq2_odd_chk and len(self.history2_odd) < len(self.history1_odd):
             seq2_odd_chk = self.next_s2(1)
 
         if seq2_odd_chk:
@@ -67,7 +68,8 @@ class HeuristicAlgorithm:
         evn_len = total_len - odd_len
 
         # if s2 check returns !=0, then don't check until the next fork return
-        while len(self.history1_even) + len(self.history1_odd) < total_len:
+        while len(self.history1_even) + len(self.history1_odd) < total_len or\
+                len(self.history2_even) + len(self.history2_odd) <= total_len:
             if self.build_paths():
                 rand_seq = random.randint(0, 1)
                 # change a random path, with returns possible
@@ -79,8 +81,7 @@ class HeuristicAlgorithm:
         if len(self.history2_even) + len(self.history2_odd) < self.file.seq_len - len(self.graph.nodes2[0]) + 1:
             # try choosing another path in even (with option to reset)
             # try choosing another path in odd
-            pass
-        self.print_result()
+            print(len(self.history1_even), len(self.history1_odd), len(self.history2_even), len(self.history2_odd))
 
     def get_first_oligonucleotides(self):
         first = "".join([self.file.start[i] if not i % 2 else "X" for i in range(len(self.file.start))])
@@ -139,7 +140,7 @@ class HeuristicAlgorithm:
             # print(f"- Cannot continue; no nodes to choose from ({'odd' if parity % 2 else 'even'}) --")
             return -1
 
-        entry["chosen"] = options[0]
+        entry["chosen"] = random.choice(options)
 
         # TODO random
         if len(options) > 1:
@@ -264,6 +265,7 @@ class HeuristicAlgorithm:
             spaces += 1
             sequence += self.graph.nodes1[e["chosen"]][-1]
 
+        self.final_sequence = sequence
         print(f"\n{sequence}\n  length: {spaces + self.on1_len - 1}")
 
     def print_single(self, parity, spectrum):
