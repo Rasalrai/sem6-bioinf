@@ -7,6 +7,5 @@ cases generation instructions (xml files): http://www.piotr.e.wawrzyniak.doctora
 running:
 
 ```shell
-python3 main.py path/to/file.xml size_of_finished_sequence
+python3 main.py path/to/file.xml
 ```
-
