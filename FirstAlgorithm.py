@@ -4,7 +4,6 @@ from Graph import Graph
 from XmlFile import XmlFile
 
 
-# noinspection DuplicatedCode
 class FirstAlgorithm:
     def __init__(self, g: Graph):
         self.graph: Graph = g
@@ -22,8 +21,6 @@ class FirstAlgorithm:
         self.final_sequence = ""
 
     def build_paths(self):
-        # TODO first check which path is the shortest/missing most, and start "filling" with it
-        # TODO detection if it's known which path needs to be reverted
         final_odd_len = (self.file.seq_len - self.on1_len + 1) // 2
         final_evn_len = self.file.seq_len - self.on1_len + 1 - final_odd_len
 
@@ -37,7 +34,6 @@ class FirstAlgorithm:
 
         # check if it's there was no error since last fork and if there's enough data from seq1
         # to check with seq2
-        # TODO check continuation condition so that it can stop correctly at the end of sequence (it's too short now?)
         while len(self.history2_even) <= len(self.history1_even):
             if self.next_s2(0):
                 return 2
@@ -165,15 +161,13 @@ class FirstAlgorithm:
             -1: the node has no out edges
              1: no out edge matches the other sequences
         """
-        # todo error detections (of problems in s1)
         history = self.history2_odd if parity % 2 else self.history2_even
         entry = {"prev": history[-1]["chosen"]}
 
         options = self.get_next_nodes(entry["prev"], 2)
 
         if len(options) == 0:
-            # TODO return val
-            # print(f"- Cannot continue; no nodes to choose from (s2; {'odd' if parity % 2 else 'even'}) --")
+            print(f"- Cannot continue; no nodes to choose from (s2; {'odd' if parity % 2 else 'even'}) --")
             return -1
 
         if len(options) > 1:
@@ -213,7 +207,6 @@ class FirstAlgorithm:
 
     def find_spectrum_match(self, parity_s2):
         """
-        TODO problem: wraca do zbyt wczesnego miejsca, gdzie potem nie ma forków do powrotu
         if paths of spectrum 1 are built so that building matching path of sp 2 is impossible,
         rebuild spectrum 1 paths, checking all options
 
@@ -224,7 +217,7 @@ class FirstAlgorithm:
         """
         curr = len(self.history2_odd if parity_s2 % 2 else self.history2_even)
 
-        even_len = curr + 1     # TODO sprawdź czy te wartości działają również dla parity=0
+        even_len = curr + 1
         odd_len = curr
 
         self.history1_even = self.history1_even[:even_len]
@@ -246,12 +239,6 @@ class FirstAlgorithm:
         success = False
 
         # for every even path option, check every odd path option
-        # while len([x for x in self.history1_even if x["fork"]]):  # loop for even path options
-
-        """
-        case: saved_odd_state jest poprawny, trzeba znaleźć pasujący even path
-        """
-
         while True:  # loop for even path options
             while len(self.history1_even) + len(self.history1_odd) < self.file.seq_len - self.on1_len + 1:
                 # bp = self.build_paths()

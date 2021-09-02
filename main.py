@@ -19,21 +19,23 @@ if __name__ == '__main__':
     f = XmlFile(input_file)
     g = Graph(f)
 
-    print("\n\nDFS")
+    # # print("\n\nDFS")
     solution2 = FirstAlgorithm(g)
     time_start_dfs = time.time()
     solution2.execute()
     dfs_time = time.time() - time_start_dfs
 
-    print("Heuristic")
+    # print("Heuristic")
     solution1 = HeuristicAlgorithm(g)
     time_start_heur = time.time()
     solution1.execute()
     heur_time = time.time() - time_start_heur
-
+    #
     assert solution1.final_sequence == solution2.final_sequence
 
-    print("\n", input_file, sep="")
+    # print("\n", input_file, sep="")
+    # print(f"DFS time:\n\t{dfs_time}")
+    # print(f"Heuristic time:\n\t{heur_time}")
 
-    print(f"DFS time:\n\t{dfs_time}")
-    print(f"Heuristic time:\n\t{heur_time}")
+    print(dfs_time)
+    print(heur_time)

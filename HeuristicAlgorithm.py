@@ -1,4 +1,3 @@
-import copy
 import random
 
 from Graph import Graph
@@ -31,15 +30,14 @@ class HeuristicAlgorithm:
         odd_chk = 0
 
         # if s2 check returns !=0, then don't check until the next fork return
-        # while len(self.history1_even) + len(self.history1_odd) < self.file.seq_len - self.on1_len + 1:
         while len(self.history1_even) <= len(self.history1_odd) and len(self.history1_even) < evn_len:
             if evn_chk:
-                self.go_back_dfs(0, True)
+                self.go_back_dfs(0, False)
             evn_chk = self.next_step(0)
 
         while len(self.history1_odd) < len(self.history1_even) and len(self.history1_odd) < odd_len:
             if odd_chk:
-                self.go_back_dfs(1, True)
+                self.go_back_dfs(1, False)
             odd_chk = self.next_step(1)
 
         # check if it's there was no error since last fork and if there's enough data from seq1
@@ -61,8 +59,6 @@ class HeuristicAlgorithm:
     def execute(self):
         self.get_first_oligonucleotides()
 
-        # even_length = ceil(total _len / 2)
-        # odd_length = floor(total _len / 2)
         total_len = self.file.seq_len - self.on1_len + 1
         odd_len = total_len // 2
         evn_len = total_len - odd_len
@@ -76,12 +72,6 @@ class HeuristicAlgorithm:
                 # if return not possible, return the other sequence
                 if self.go_back_dfs(rand_seq, True):
                     self.go_back_dfs(rand_seq+1, True)
-
-        # TODO if seq2 is not matching
-        if len(self.history2_even) + len(self.history2_odd) < self.file.seq_len - len(self.graph.nodes2[0]) + 1:
-            # try choosing another path in even (with option to reset)
-            # try choosing another path in odd
-            print(len(self.history1_even), len(self.history1_odd), len(self.history2_even), len(self.history2_odd))
 
     def get_first_oligonucleotides(self):
         first = "".join([self.file.start[i] if not i % 2 else "X" for i in range(len(self.file.start))])
@@ -142,7 +132,6 @@ class HeuristicAlgorithm:
 
         entry["chosen"] = random.choice(options)
 
-        # TODO random
         if len(options) > 1:
             entry["fork"] = True
             entry["options"] = options
@@ -154,12 +143,11 @@ class HeuristicAlgorithm:
 
     def go_back_dfs(self, parity, allow_return):
         """ return to the last encountered fork """
-        # TODO randomize
         history = self.history1_odd if parity % 2 else self.history1_even
 
         forks = [x for x in range(len(history)) if history[x]["fork"]]
         if len(forks):
-            i = self.get_random_fork(forks) if allow_return else forks[-1]
+            i = self.get_random_fork(forks, parity) if allow_return else forks[-1]
             # print(f"Return sequence {'odd' if parity % 2 else 'even'} from {len(history)} to {i}")
             history = history[:i + 1]
             # choose a random option
@@ -173,7 +161,6 @@ class HeuristicAlgorithm:
                 history[i]["chosen"] = history[i]["options"].pop()
                 if len(history[i]["options"]) == 0:
                     history[i]["fork"] = False
-
             if parity % 2:
                 self.history1_odd = history
                 self.history2_odd = self.history2_odd[:i + 1]
@@ -187,9 +174,16 @@ class HeuristicAlgorithm:
             # print(f"Did not find a fork to return to! {'odd' if parity % 2 else 'even'}")
             return 1
 
-    def get_random_fork(self, forks):
-        # TODO fancy probablility function
-        return random.choice(forks)
+    def get_random_fork(self, forks, parity):
+        l = len(self.history1_odd if parity else self.history1_even)
+        seq_part = l / ((self.file.seq_len - self.on1_len + 1) // 2)
+        r = round(random.gauss(seq_part * len(forks), len(forks)/10))
+        # clip
+        if r < 0:
+            return forks[0]
+        if r >= len(forks):
+            return forks[-1]
+        return forks[r]
 
     def next_s2(self, parity):
         """
@@ -199,14 +193,12 @@ class HeuristicAlgorithm:
             -1: the node has no out edges
              1: no out edge matches the other sequences
         """
-        # todo error detections (of problems in s1)
         history = self.history2_odd if parity % 2 else self.history2_even
         entry = {"prev": history[-1]["chosen"]}
 
         options = self.get_next_nodes(entry["prev"], 2)
 
         if len(options) == 0:
-            # TODO return val
             # print(f"- Cannot continue; no nodes to choose from (s2; {'odd' if parity % 2 else 'even'}) --")
             return -1
 
